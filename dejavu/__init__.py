@@ -1,12 +1,16 @@
+from __future__ import absolute_import
+from __future__ import print_function
 import binascii
 import dejavu.decoder as decoder
-import fingerprint
+from . import fingerprint
 import multiprocessing
 import os
 import traceback
 import sys
 
 from dejavu.database import Database
+from six.moves import range
+from six.moves import zip
 
 
 class Dejavu(object):
@@ -49,16 +53,16 @@ class Dejavu(object):
 
             # don't refingerprint already fingerprinted files
             if decoder.unique_hash(filename) in self.songhashes_set:
-                print "%s already fingerprinted, continuing..." % filename
+                print("%s already fingerprinted, continuing..." % filename)
                 continue
 
             filenames_to_fingerprint.append(filename)
 
         # Prepare _fingerprint_worker input
-        worker_input = zip(
+        worker_input = list(zip(
             filenames_to_fingerprint,
             [self.limit] * len(filenames_to_fingerprint)
-        )
+        ))
 
         # Send off our tasks
         iterator = pool.imap_unordered(_fingerprint_worker, worker_input)
@@ -66,7 +70,7 @@ class Dejavu(object):
         # Loop till we have all of them
         while True:
             try:
-                song_name, hashes, file_hash = iterator.next()
+                song_name, hashes, file_hash = next(iterator)
             except multiprocessing.TimeoutError:
                 continue
             except StopIteration:
@@ -91,7 +95,7 @@ class Dejavu(object):
         song_name = song_name or songname
         # don't refingerprint already fingerprinted files
         if song_hash in self.songhashes_set:
-            print "%s already fingerprinted, continuing..." % song_name
+            print("%s already fingerprinted, continuing..." % song_name)
         else:
             song_name, hashes, file_hash = _fingerprint_worker(
                 filepath, self.limit, song_name=song_name
@@ -175,15 +179,15 @@ def _fingerprint_worker(filename, limit=None, song_name=None):
 
     for channeln, channel in enumerate(channels):
         # TODO: Remove prints or change them into optional logging.
-        print(
+        print((
             "Fingerprinting channel %d/%d for %s" %
             (channeln + 1, channel_amount, filename)
-        )
+        ))
         hashes = fingerprint.fingerprint(channel, Fs=Fs)
-        print(
+        print((
             "Finished channel %d/%d for %s" %
             (channeln + 1, channel_amount, filename)
-        )
+        ))
         result |= set(hashes)
 
     return song_name, result, file_hash
@@ -194,4 +198,4 @@ def chunkify(lst, n):
     Splits a list into roughly n equal parts.
     http://stackoverflow.com/questions/2130016/splitting-a-list-of-arbitrary-size-into-only-roughly-n-equal-parts
     """
-    return [lst[i::n] for i in xrange(n)]
+    return [lst[i::n] for i in range(n)]

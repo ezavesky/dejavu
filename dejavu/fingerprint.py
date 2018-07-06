@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
@@ -7,6 +8,8 @@ from scipy.ndimage.morphology import (
 )
 import hashlib
 from operator import itemgetter
+from six.moves import range
+from six.moves import zip
 
 IDX_FREQ_I = 0
 IDX_TIME_J = 1
@@ -116,7 +119,7 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
 
     # filter peaks
     amps = amps.flatten()
-    peaks = zip(i, j, amps)
+    peaks = list(zip(i, j, amps))
     peaks_filtered = [x for x in peaks if x[2] > amp_min]  # freq, time, amp
 
     # get indices for frequency and time
@@ -134,7 +137,7 @@ def get_2D_peaks(arr2D, plot=False, amp_min=DEFAULT_AMP_MIN):
         plt.gca().invert_yaxis()
         plt.show()
 
-    return zip(frequency_idx, time_idx)
+    return list(zip(frequency_idx, time_idx))
 
 
 def generate_hashes(peaks, fan_value=DEFAULT_FAN_VALUE):

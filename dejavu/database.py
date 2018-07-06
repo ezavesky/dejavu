@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import binascii
 
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, Binary, ForeignKey, UniqueConstraint
