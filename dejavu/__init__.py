@@ -34,7 +34,7 @@ class Dejavu(object):
         self.songs = self.db.get_songs()
         self.songhashes_set = set()  # to know which ones we've computed before
         for song in self.songs:
-            song_hash = binascii.hexlify(song.file_sha1).upper()
+            song_hash = binascii.hexlify(song.file_sha1).upper().decode('utf-8')
             self.songhashes_set.add(song_hash)
 
     def fingerprint_directory(self, path, extensions, nprocesses=None):
@@ -59,10 +59,12 @@ class Dejavu(object):
             filenames_to_fingerprint.append(filename)
 
         # Prepare _fingerprint_worker input
-        worker_input = list(zip(
-            filenames_to_fingerprint,
-            [self.limit] * len(filenames_to_fingerprint)
-        ))
+        worker_input = list(
+            zip(
+                filenames_to_fingerprint,
+                [self.limit] * len(filenames_to_fingerprint)
+            )
+        )
 
         # Send off our tasks
         iterator = pool.imap_unordered(_fingerprint_worker, worker_input)
@@ -154,7 +156,7 @@ class Dejavu(object):
             Dejavu.CONFIDENCE: largest_count,
             Dejavu.OFFSET: int(largest),
             'offset_seconds': nseconds,
-            'file_sha1': binascii.hexlify(song.file_sha1),
+            'file_sha1': binascii.hexlify(song.file_sha1).decode('utf-8'),
         }
         return song
 
@@ -179,15 +181,19 @@ def _fingerprint_worker(filename, limit=None, song_name=None):
 
     for channeln, channel in enumerate(channels):
         # TODO: Remove prints or change them into optional logging.
-        print((
-            "Fingerprinting channel %d/%d for %s" %
-            (channeln + 1, channel_amount, filename)
-        ))
+        print(
+            (
+                "Fingerprinting channel %d/%d for %s" %
+                (channeln + 1, channel_amount, filename)
+            )
+        )
         hashes = fingerprint.fingerprint(channel, Fs=Fs)
-        print((
-            "Finished channel %d/%d for %s" %
-            (channeln + 1, channel_amount, filename)
-        ))
+        print(
+            (
+                "Finished channel %d/%d for %s" %
+                (channeln + 1, channel_amount, filename)
+            )
+        )
         result |= set(hashes)
 
     return song_name, result, file_hash

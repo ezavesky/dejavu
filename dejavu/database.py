@@ -88,7 +88,7 @@ class Database(object):
         """
         fingerprints = []
         for hash, offset in set(hashes):
-            fingerprints.append(Fingerprint(hash=binascii.unhexlify(hash), song_id=sid, offset=offset))
+            fingerprints.append(Fingerprint(hash=binascii.unhexlify(hash), song_id=sid, offset=int(offset)))
 
         self.session.bulk_save_objects(fingerprints)
 
@@ -113,5 +113,5 @@ class Database(object):
         values = [binascii.unhexlify(h) for h in mapper.keys()]
 
         for fingerprint in self.session.query(Fingerprint).filter(Fingerprint.hash.in_(values)):
-            hash = binascii.hexlify(fingerprint.hash).upper()
+            hash = binascii.hexlify(fingerprint.hash).upper().decode('utf-8')
             yield (fingerprint.song_id, fingerprint.offset - mapper[hash])
