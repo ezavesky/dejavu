@@ -11,7 +11,7 @@ def parse_requirements(requirements):
         nocomments = filter((lambda x: not x.startswith('#')), stripped)
         # remove empty lines
         reqs = filter((lambda x: x), nocomments)
-        return reqs
+        return reqs 
 
 
 base_dir = os.path.dirname(__file__)

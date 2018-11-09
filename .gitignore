@@ -108,3 +108,4 @@ venv.bak/
 
 # testing units
 results
+.DS_STORE

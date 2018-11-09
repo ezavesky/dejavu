@@ -1,13 +1,20 @@
 from __future__ import absolute_import
 from __future__ import print_function
 import binascii
-import dejavu.decoder as decoder
-from . import fingerprint
 import logging
 import multiprocessing
 import os
 import traceback
 import sys
+
+try:
+    import cPickle as pickle
+except:
+    import pickle
+import gzip
+
+import dejavu.decoder as decoder
+from . import fingerprint
 
 from dejavu.database import Database
 from six.moves import range
@@ -22,7 +29,7 @@ class Dejavu(object):
     MATCH_TIME = 'match_time'
     OFFSET = 'offset'
 
-    def __init__(self, dburl, fingerprint_limit=None):
+    def __init__(self, dburl, fingerprint_limit=None, fingerprint_path=None):
         """
         :param dburl: string, database url as supported by SQLAlchemy. (RFC-1738)
         :param fingerprint_limit: int, number of seconds (from the start of the music file) to fingerprint
@@ -30,6 +37,7 @@ class Dejavu(object):
         super(Dejavu, self).__init__()
         self.db = Database(dburl)
         self.limit = fingerprint_limit
+        self.fingerprint_path = fingerprint_path
 
     def fingerprint_directory(self, path, extensions, nprocesses=None):
         # Try to use the maximum amount of processes if not given.
@@ -57,7 +65,9 @@ class Dejavu(object):
         worker_input = list(
             zip(
                 filenames_to_fingerprint,
-                [self.limit] * len(filenames_to_fingerprint)
+                [self.limit] * len(filenames_to_fingerprint), 
+                [None] * len(filenames_to_fingerprint),
+                [self.fingerprint_path] * len(filenames_to_fingerprint)
             )
         )
 
@@ -67,7 +77,7 @@ class Dejavu(object):
         # Loop till we have all of them
         while True:
             try:
-                song_name, hashes, file_hash = next(iterator)
+                song_name, hashes, file_hash, file_path = next(iterator)
             except multiprocessing.TimeoutError:
                 continue
             except StopIteration:
@@ -79,7 +89,8 @@ class Dejavu(object):
             else:
                 sid = self.db.insert_song(song_name, file_hash)
 
-                self.db.insert_hashes(sid, hashes)
+                if self.fingerprint_path is None:
+                    self.db.insert_hashes(sid, hashes)
                 self.db.set_song_fingerprinted(sid)
 
         pool.close()
@@ -93,12 +104,13 @@ class Dejavu(object):
         if self.db.get_song_by_hash(file_hash) is not None:
             logger.info("%s already fingerprinted, continuing..." % song_name)
         else:
-            song_name, hashes, file_hash = _fingerprint_worker(
-                filepath, self.limit, song_name=song_name
+            song_name, hashes, file_hash, _ = _fingerprint_worker(
+                filepath, self.limit, song_name, self.fingerprint_path
             )
             sid = self.db.insert_song(song_name, file_hash)
 
-            self.db.insert_hashes(sid, hashes)
+            if self.fingerprint_path is None:
+                self.db.insert_hashes(sid, hashes)
             self.db.set_song_fingerprinted(sid)
 
     def find_matches(self, samples, Fs=fingerprint.DEFAULT_FS):
@@ -154,18 +166,22 @@ class Dejavu(object):
         return song
 
     def recognize(self, recognizer, *options, **kwoptions):
+        if self.fingerprint_path is not None:
+            logger.error("Recognition with fingerprints stored to a path is not supported")
+
         r = recognizer(self)
         return r.recognize(*options, **kwoptions)
 
 
-def _fingerprint_worker(filename, limit=None, song_name=None):
+def _fingerprint_worker(filename, limit=None, song_name=None, fingerprint_path=False):
     # Pool.imap sends arguments as tuples so we have to unpack
     # them ourself.
     try:
-        filename, limit = filename
+        filename, limit, song_name, fingerprint_path = filename
     except ValueError:
         pass
 
+    print(filename)
     songname, extension = os.path.splitext(os.path.basename(filename))
     song_name = song_name or songname
     file_hash = decoder.unique_hash(filename)
@@ -189,7 +205,13 @@ def _fingerprint_worker(filename, limit=None, song_name=None):
         )
         result |= set(hashes)
 
-    return song_name, result, file_hash
+    # if a path is specified, write to that path before passing on hashes
+    if fingerprint_path is not None:
+        hash_path = os.path.join(fingerprint_path, file_hash+".pkl.gz")
+        with gzip.open(hash_path, "wb") as h_pickle:
+            pickle.dump(result, h_pickle)
+
+    return song_name, result, file_hash, filename
 
 
 def chunkify(lst, n):

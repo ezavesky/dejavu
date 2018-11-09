@@ -30,6 +30,15 @@ if __name__ == '__main__':
         '--dburl mysql://user:pass@localhost/database\n'
     )
     parser.add_argument(
+        '-e',
+        '--externalfingerprint',
+        nargs='?',
+        default=None,
+        help='Save fingerprint hashes to external directory instead of database push '
+        'Usages: \n'
+        '--externalfingerprint path_location\n'
+    )
+    parser.add_argument(
         '-f',
         '--fingerprint',
         nargs='*',
@@ -71,7 +80,7 @@ if __name__ == '__main__':
         parser.print_help()
         sys.exit(0)
 
-    djv = Dejavu(dburl=args.dburl, fingerprint_limit=args.limit)
+    djv = Dejavu(dburl=args.dburl, fingerprint_limit=args.limit, fingerprint_path=args.externalfingerprint)
     if args.fingerprint:
         # Fingerprint all files in a directory
         if len(args.fingerprint) == 2:
